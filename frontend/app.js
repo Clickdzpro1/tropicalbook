@@ -171,7 +171,6 @@ async function handleBookingSearch(e) {
 }
 
 function displaySearchResults(locations, checkIn, checkOut) {
-    // Create results section
     let resultsSection = document.getElementById('searchResults');
     if (!resultsSection) {
         resultsSection = document.createElement('section');
@@ -184,18 +183,23 @@ function displaySearchResults(locations, checkIn, checkOut) {
         <div class="container">
             <h2>Available Locations</h2>
             <div class="results-grid">
-                ${locations.map(location => `
-                    <div class="location-card">
-                        <h3>${location.name}</h3>
-                        <p><strong>${location.airport.name} (${location.airport.code})</strong></p>
-                        <p>Daily Rate: $${location.pricing.daily}</p>
-                        <p>Available Spots: ${location.capacity.available}</p>
-                        <div class="location-features">
-                            ${location.features.map(f => `<span class="badge">${f}</span>`).join('')}
+                ${locations.map(location => {
+                    const pricing = typeof location.pricing === 'string' ? JSON.parse(location.pricing) : location.pricing;
+                    const features = Array.isArray(location.features) ? location.features : [];
+
+                    return `
+                        <div class="location-card">
+                            <h3>${location.name}</h3>
+                            <p><strong>${location.airport_name} (${location.airport_code})</strong></p>
+                            <p>Daily Rate: $${pricing.daily}</p>
+                            <p>Available Spots: ${location.capacity_available}</p>
+                            <div class="location-features">
+                                ${features.map(f => `<span class="badge">${f.replace('_', ' ')}</span>`).join('')}
+                            </div>
+                            <button class="btn btn-primary" onclick="bookLocation('${location.id}', '${checkIn}', '${checkOut}', ${pricing.daily})">Book Now</button>
                         </div>
-                        <button class="btn btn-primary" onclick="bookLocation('${location._id}', '${checkIn}', '${checkOut}', ${location.pricing.daily})">Book Now</button>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         </div>
     `;

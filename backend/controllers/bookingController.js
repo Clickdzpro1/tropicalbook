@@ -1,28 +1,68 @@
-const Booking = require('../models/Booking');
-const Location = require('../models/Location');
-const User = require('../models/User');
+const supabase = require('../config/supabase');
+
+const calculateBookingPricing = (checkIn, checkOut, dailyRate) => {
+  const days = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
+  const subtotal = dailyRate * days;
+  const tax = subtotal * 0.08;
+  const total = subtotal + tax;
+  const loyaltyPointsEarned = Math.floor(total / 10);
+
+  return {
+    totalDays: days,
+    subtotal: parseFloat(subtotal.toFixed(2)),
+    tax: parseFloat(tax.toFixed(2)),
+    total: parseFloat(total.toFixed(2)),
+    loyaltyPointsEarned
+  };
+};
 
 exports.createBooking = async (req, res) => {
   try {
     const { locationId, vehicle, checkIn, checkOut, dailyRate } = req.body;
 
-    const location = await Location.findById(locationId);
-    if (!location || location.capacity.available <= 0) {
+    const { data: location, error: locError } = await supabase
+      .from('locations')
+      .select('capacity_available')
+      .eq('id', locationId)
+      .single();
+
+    if (locError || !location || location.capacity_available <= 0) {
       return res.status(400).json({ success: false, message: 'Location unavailable' });
     }
 
-    const booking = await Booking.create({
-      user: req.user.id,
-      location: locationId,
-      vehicle,
-      dates: { checkIn: new Date(checkIn), checkOut: new Date(checkOut) },
-      pricing: { dailyRate },
-      status: 'pending'
-    });
+    const pricing = calculateBookingPricing(checkIn, checkOut, dailyRate);
 
-    // Update location availability
-    location.updateAvailability(-1);
-    await location.save();
+    const { data: booking, error: bookError } = await supabase
+      .from('bookings')
+      .insert([{
+        user_id: req.user.id,
+        location_id: locationId,
+        vehicle: vehicle,
+        check_in: checkIn,
+        check_out: checkOut,
+        daily_rate: dailyRate,
+        total_days: pricing.totalDays,
+        subtotal: pricing.subtotal,
+        tax: pricing.tax,
+        total: pricing.total,
+        loyalty_points_earned: pricing.loyaltyPointsEarned,
+        status: 'pending'
+      }])
+      .select()
+      .single();
+
+    if (bookError) {
+      return res.status(500).json({ success: false, message: bookError.message });
+    }
+
+    const { error: updateError } = await supabase
+      .from('locations')
+      .update({ capacity_available: location.capacity_available - 1 })
+      .eq('id', locationId);
+
+    if (updateError) {
+      console.error('Failed to update location capacity:', updateError);
+    }
 
     res.status(201).json({ success: true, booking });
   } catch (error) {
@@ -32,10 +72,23 @@ exports.createBooking = async (req, res) => {
 
 exports.getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user.id })
-      .populate('location', 'name airport')
-      .sort('-createdAt');
-    
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        locations (
+          name,
+          airport_code,
+          airport_name
+        )
+      `)
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
     res.json({ success: true, count: bookings.length, bookings });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -44,12 +97,17 @@ exports.getBookings = async (req, res) => {
 
 exports.getBooking = async (req, res) => {
   try {
-    const booking = await Booking.findOne({
-      _id: req.params.id,
-      user: req.user.id
-    }).populate('location');
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        locations (*)
+      `)
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
 
-    if (!booking) {
+    if (error || !booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
@@ -61,17 +119,27 @@ exports.getBooking = async (req, res) => {
 
 exports.updateBooking = async (req, res) => {
   try {
-    const booking = await Booking.findOne({
-      _id: req.params.id,
-      user: req.user.id
-    });
+    const { data: existingBooking, error: checkError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
 
-    if (!booking) {
+    if (checkError || !existingBooking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    Object.assign(booking, req.body);
-    await booking.save();
+    const { data: booking, error: updateError } = await supabase
+      .from('bookings')
+      .update(req.body)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      return res.status(500).json({ success: false, message: updateError.message });
+    }
 
     res.json({ success: true, booking });
   } catch (error) {
@@ -81,25 +149,41 @@ exports.updateBooking = async (req, res) => {
 
 exports.cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findOne({
-      _id: req.params.id,
-      user: req.user.id
-    });
+    const { data: booking, error: checkError } = await supabase
+      .from('bookings')
+      .select('*, locations(capacity_available)')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
 
-    if (!booking) {
+    if (checkError || !booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    booking.status = 'cancelled';
-    booking.cancellationReason = req.body.reason;
-    await booking.save();
+    const { data: updatedBooking, error: cancelError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'cancelled',
+        cancellation_reason: req.body.reason
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
 
-    // Restore location availability
-    const location = await Location.findById(booking.location);
-    location.updateAvailability(1);
-    await location.save();
+    if (cancelError) {
+      return res.status(500).json({ success: false, message: cancelError.message });
+    }
 
-    res.json({ success: true, message: 'Booking cancelled', booking });
+    const { error: restoreError } = await supabase
+      .from('locations')
+      .update({ capacity_available: booking.locations.capacity_available + 1 })
+      .eq('id', booking.location_id);
+
+    if (restoreError) {
+      console.error('Failed to restore location capacity:', restoreError);
+    }
+
+    res.json({ success: true, message: 'Booking cancelled', booking: updatedBooking });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

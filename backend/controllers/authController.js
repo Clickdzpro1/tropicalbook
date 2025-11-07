@@ -1,9 +1,9 @@
-const User = require('../models/User');
+const supabase = require('../config/supabase');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'tropical-secret-key', {
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'tropical-secret-key', {
     expiresIn: '7d'
   });
 };
@@ -12,29 +12,61 @@ exports.register = async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone } = req.body;
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingUser) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    const user = await User.create({
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
-      firstName,
-      lastName,
-      phone
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone || null
+        }
+      }
     });
 
-    const token = generateToken(user._id);
+    if (authError) {
+      return res.status(400).json({ success: false, message: authError.message });
+    }
+
+    const { data: user, error: dbError } = await supabase
+      .from('users')
+      .insert([{
+        id: authData.user.id,
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone || null,
+        role: 'customer'
+      }])
+      .select()
+      .single();
+
+    if (dbError) {
+      return res.status(500).json({ success: false, message: dbError.message });
+    }
+
+    const token = generateToken(user.id);
 
     res.status(201).json({
       success: true,
       token,
       user: {
-        id: user._id,
+        id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role
       }
     });
@@ -47,24 +79,38 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email }).select('+password');
-    if (!user || !(await user.comparePassword(password))) {
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (authError) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    const token = generateToken(user._id);
+    const { data: user, error: dbError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (dbError || !user) {
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+
+    const token = generateToken(user.id);
 
     res.json({
       success: true,
       token,
       user: {
-        id: user._id,
+        id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role,
-        loyaltyPoints: user.loyaltyPoints,
-        loyaltyTier: user.loyaltyTier
+        loyaltyPoints: user.loyalty_points,
+        loyaltyTier: user.loyalty_tier
       }
     });
   } catch (error) {
@@ -86,20 +132,16 @@ exports.refreshToken = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
 
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.FRONTEND_URL}/reset-password`
+    });
+
+    if (error) {
+      return res.status(400).json({ success: false, message: error.message });
     }
 
-    const resetToken = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    user.resetPasswordExpire = Date.now() + 3600000; // 1 hour
-
-    await user.save();
-
-    // TODO: Send email with reset link
-    res.json({ success: true, message: 'Reset email sent', resetToken });
+    res.json({ success: true, message: 'Password reset email sent' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -107,27 +149,17 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    const resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(req.params.token)
-      .digest('hex');
+    const { password } = req.body;
 
-    const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() }
+    const { error } = await supabase.auth.updateUser({
+      password: password
     });
 
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+    if (error) {
+      return res.status(400).json({ success: false, message: error.message });
     }
 
-    user.password = req.body.password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save();
-
-    const token = generateToken(user._id);
-    res.json({ success: true, token });
+    res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -135,7 +167,16 @@ exports.resetPassword = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
