@@ -3,8 +3,15 @@
 **Premium Airport Parking Management System** for Fort Lauderdale (FLL) & Toronto Pearson (YYZ)
 
 [![Live Demo](https://img.shields.io/badge/demo-live-green)](https://tropicalparking.com)
+[![Deploy to Bolt](https://img.shields.io/badge/Deploy%20to-Bolt-0080ff?logo=stackblitz)](https://bolt.new)
 [![Version](https://img.shields.io/badge/version-3.0.0-blue)]
 [![License](https://img.shields.io/badge/license-MIT-orange)]
+
+## 🚀 Quick Deploy to Bolt
+
+**Deploy instantly to Bolt/StackBlitz for testing and demos!**
+
+👉 **[Complete Bolt Deployment Guide](BOLT_DEPLOYMENT.md)** - Get started in 5 minutes
 
 ## 🚀 Features
 

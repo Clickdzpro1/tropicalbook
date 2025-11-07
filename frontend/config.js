@@ -7,6 +7,11 @@ const ENV = {
     stripePublicKey: 'pk_test_YOUR_STRIPE_TEST_KEY',
     recaptchaSiteKey: 'YOUR_RECAPTCHA_SITE_KEY'
   },
+  bolt: {
+    apiUrl: '/api',
+    stripePublicKey: 'pk_test_YOUR_STRIPE_TEST_KEY',
+    recaptchaSiteKey: 'YOUR_RECAPTCHA_SITE_KEY'
+  },
   production: {
     apiUrl: 'https://api.tropicalparking.com/api',
     stripePublicKey: 'pk_live_YOUR_STRIPE_PRODUCTION_KEY',
@@ -14,9 +19,26 @@ const ENV = {
   }
 };
 
-const isProduction = window.location.hostname !== 'localhost' &&
-                     window.location.hostname !== '127.0.0.1';
+function detectEnvironment() {
+  const hostname = window.location.hostname;
 
-const config = isProduction ? ENV.production : ENV.development;
+  if (hostname.includes('bolt.new') ||
+      hostname.includes('stackblitz.io') ||
+      hostname.includes('webcontainer')) {
+    return 'bolt';
+  }
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'development';
+  }
+
+  return 'production';
+}
+
+const environment = detectEnvironment();
+const config = ENV[environment];
+
+console.log(`🌴 TropicalParking running in ${environment} mode`);
+console.log(`🔗 API URL: ${config.apiUrl}`);
 
 window.TROPICAL_CONFIG = config;

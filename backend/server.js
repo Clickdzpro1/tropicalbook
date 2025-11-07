@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 require('dotenv').config();
 
 const supabase = require('./config/supabase');
@@ -9,13 +10,19 @@ const supabase = require('./config/supabase');
 const app = express();
 
 // Security Middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+}));
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || '*',
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from frontend directory
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -94,6 +101,13 @@ app.get('/metrics', (req, res) => {
     res.json(metrics);
 });
 
+// Serve index.html for all non-API routes (SPA support)
+app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    }
+});
+
 // Error Handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -104,6 +118,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📁 Serving frontend from: ${path.join(__dirname, '../frontend')}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+});
 
 module.exports = app;
