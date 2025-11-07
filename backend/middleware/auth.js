@@ -14,14 +14,23 @@ exports.protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tropical-secret-key');
-    req.user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(decoded.id);
 
-    if (!req.user) {
+    if (!user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
 
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      firstName: user.first_name,
+      lastName: user.last_name
+    };
+
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error);
     res.status(401).json({ success: false, message: 'Not authorized' });
   }
 };

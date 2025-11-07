@@ -1,69 +1,108 @@
-const mongoose = require('mongoose');
+const { supabase } = require('../config/supabase');
 
-const reviewSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  location: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Location',
-    required: true
-  },
-  booking: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking'
-  },
-  rating: {
-    type: Number,
-    required: true,
-    min: 1,
-    max: 5
-  },
-  title: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 100
-  },
-  comment: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 1000
-  },
-  helpful: {
-    count: {
-      type: Number,
-      default: 0
-    },
-    users: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }]
-  },
-  response: {
-    text: String,
-    respondedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    respondedAt: Date
-  },
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+class Review {
+  static async create(reviewData) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .insert([reviewData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   }
-}, { timestamps: true });
 
-// Index for efficient queries
-reviewSchema.index({ location: 1, status: 1 });
-reviewSchema.index({ user: 1 });
+  static async findById(id) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*, users(*), locations(*)')
+      .eq('id', id)
+      .maybeSingle();
 
-module.exports = mongoose.model('Review', reviewSchema);
+    if (error) throw error;
+    return data;
+  }
+
+  static async findByLocationId(locationId, approved = true) {
+    let query = supabase
+      .from('reviews')
+      .select('*, users(first_name, last_name)')
+      .eq('location_id', locationId);
+
+    if (approved) {
+      query = query.eq('is_approved', true);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async findByUserId(userId) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*, locations(name, airport_code)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async findAll(filters = {}) {
+    let query = supabase
+      .from('reviews')
+      .select('*, users(*), locations(*)');
+
+    if (filters.isApproved !== undefined) {
+      query = query.eq('is_approved', filters.isApproved);
+    }
+
+    if (filters.isVerified !== undefined) {
+      query = query.eq('is_verified', filters.isVerified);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async update(id, updates) {
+    const { data, error } = await supabase
+      .from('reviews')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async approve(id) {
+    return await this.update(id, { is_approved: true });
+  }
+
+  static async incrementHelpful(id) {
+    const review = await this.findById(id);
+    if (!review) throw new Error('Review not found');
+
+    return await this.update(id, {
+      helpful_count: review.helpful_count + 1
+    });
+  }
+
+  static async delete(id) {
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  }
+}
+
+module.exports = Review;
