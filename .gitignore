@@ -1,0 +1,14 @@
+node_modules/
+package-lock.json
+.env
+.env.local
+.env.production
+logs/
+*.log
+.DS_Store
+Thumb s.db
+.vscode/
+.idea/
+dist/
+build/
+coverage/
