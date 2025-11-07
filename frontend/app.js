@@ -1,5 +1,5 @@
 // Configuration
-const API_URL = 'http://localhost:5000/api';
+const API_URL = window.TROPICAL_CONFIG?.apiUrl || 'http://localhost:5000/api';
 let authToken = localStorage.getItem('authToken');
 
 // Initialize GSAP and ScrollTrigger

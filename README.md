@@ -17,15 +17,15 @@
 - ⭐ **Real Customer Reviews** from Google & Yelp
 - 📝 **SEO-Optimized Blog** for daily content
 
-### Backend (Node.js + Express + MongoDB)
+### Backend (Node.js + Express + Supabase)
 - 🏗️ **RESTful API** with Express.js 4.18+
-- 🗄️ **MongoDB** database with Mongoose ODM
-- 🔒 **JWT Authentication** with refresh tokens
+- 🗄️ **Supabase PostgreSQL** database with Row Level Security
+- 🔒 **JWT Authentication** with Supabase Auth
 - 🛡️ **Security**: Helmet, Rate Limiting, CORS, Sanitization
 - 📧 **Email Service** with Nodemailer
 - 💰 **Payment Processing** via Stripe
-- 📊 **Analytics Dashboard**
-- 💬 **Real-time Chat** with Socket.IO
+- 📊 **Health Monitoring** with detailed metrics
+- 🚀 **Production Ready** with PM2 process management
 
 ### Admin Dashboard
 - 📈 Real-time Analytics & Revenue Reports
@@ -84,25 +84,27 @@ tropicalbook/
 
 **Frontend:** HTML5, CSS3, JavaScript ES6+, GSAP, Parallax.js
 
-**Backend:** Node.js 18+, Express.js, MongoDB, Mongoose, JWT
+**Backend:** Node.js 18+, Express.js, Supabase PostgreSQL, JWT
 
-**Security:** Helmet, CORS, Rate Limiting, bcryptjs
+**Security:** Helmet, CORS, Rate Limiting, bcryptjs, Row Level Security
 
 **Payments:** Stripe API
 
 **Email:** Nodemailer
 
-**Real-time:** Socket.IO
+**Process Management:** PM2
 
-## 🚀 Installation
+## 🚀 Quick Start
 
-### Prerequisites
+### Development Setup
+
+#### Prerequisites
 - Node.js 18+ and npm
-- MongoDB 6.0+
-- Stripe account
-- Google reCAPTCHA keys
+- Supabase account (database already configured)
+- Stripe account (optional for payments)
+- Google reCAPTCHA keys (optional for forms)
 
-### Backend Setup
+#### Backend Setup
 
 ```bash
 # Clone repository
@@ -114,23 +116,41 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your credentials
-
-# Start MongoDB
-mongod
+# Edit .env with your Supabase credentials
 
 # Run server
 npm run dev
 ```
 
-### Frontend Setup
+#### Frontend Setup
 
 ```bash
 cd ../frontend
 
 # Use any static file server
 npx http-server -p 3000
-# Or use Live Server in VS Code
+# Or open index.html in your browser
+```
+
+### Production Deployment
+
+**Ready to deploy to production?** See our comprehensive deployment guides:
+
+- 📘 **[PUBLISH_SUMMARY.md](PUBLISH_SUMMARY.md)** - Start here! Overview of deployment preparation
+- 📗 **[QUICK_START.md](QUICK_START.md)** - Fast-track deployment in 3 steps (4-5 hours)
+- 📕 **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment manual with all hosting options
+- 📋 **[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md)** - Pre-launch verification checklist
+- 📄 **[DEPLOYMENT_FILES.md](DEPLOYMENT_FILES.md)** - Reference guide for all deployment files
+
+**Deployment Scripts Available:**
+```bash
+# Backend deployment
+cd backend
+./deploy.sh
+
+# Frontend deployment
+cd frontend
+./deploy.sh
 ```
 
 ## 📊 API Endpoints
@@ -232,18 +252,28 @@ npm test
 npm run test:coverage
 ```
 
-## 🚀 Deployment
+## 🚀 Production Deployment
 
-### Backend (PM2)
+**Complete deployment guides are available!** See the Quick Start section above for links to:
+- QUICK_START.md - Deploy in 3 steps
+- DEPLOYMENT.md - Comprehensive manual
+- PRODUCTION_CHECKLIST.md - Verification checklist
+
+**Quick deployment commands:**
 ```bash
-npm install -g pm2
-pm2 start server.js --name tropicalparking
-pm2 save
-pm2 startup
+# Backend deployment with PM2
+cd backend && ./deploy.sh
+
+# Frontend deployment (multiple options)
+cd frontend && ./deploy.sh
 ```
 
-### Frontend
-Deploy to Netlify, Vercel, or AWS S3 + CloudFront
+**Health monitoring endpoints:**
+```bash
+GET /health           # Basic health check
+GET /health/detailed  # Includes database status
+GET /metrics          # System metrics
+```
 
 ## 🎯 Demo Accounts
 
