@@ -1,0 +1,168 @@
+<!-- TROPICAL PARKING - TRACKING CODES -->
+<!-- Paste this in the <head> section of tropicalparking.com -->
+
+<!-- ============================================== -->
+<!-- GOOGLE ANALYTICS 4 + ENHANCED ECOMMERCE -->
+<!-- ============================================== -->
+
+<!-- Replace G-XXXXXXXXXX with your actual GA4 measurement ID -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX', {
+    'send_page_view': true,
+    'allow_enhanced_conversions': true
+  });
+</script>
+
+<!-- ============================================== -->
+<!-- BOOKING TRACKING EVENTS -->
+<!-- ============================================== -->
+
+<script>
+// Track booking initiation
+function trackBookingStart(location, startDate, endDate) {
+  gtag('event', 'begin_checkout', {
+    'currency': 'USD',
+    'value': 0,
+    'items': [{
+      'item_id': location,
+      'item_name': location + ' Parking',
+      'item_category': 'Airport Parking',
+      'start_date': startDate,
+      'end_date': endDate
+    }]
+  });
+}
+
+// Track completed booking
+function trackBookingComplete(bookingId, location, totalPrice, days) {
+  gtag('event', 'purchase', {
+    'transaction_id': bookingId,
+    'value': totalPrice,
+    'currency': 'USD',
+    'items': [{
+      'item_id': location,
+      'item_name': location + ' Parking',
+      'item_category': 'Airport Parking',
+      'price': totalPrice,
+      'quantity': days
+    }]
+  });
+  
+  // Track Google Ads conversion
+  // Replace AW-XXXXXXXXX/XXXXXX with your conversion ID
+  gtag('event', 'conversion', {
+    'send_to': 'AW-XXXXXXXXX/XXXXXX',
+    'value': totalPrice,
+    'currency': 'USD',
+    'transaction_id': bookingId
+  });
+}
+
+// Track shuttle request
+function trackShuttleRequest(location) {
+  gtag('event', 'shuttle_request', {
+    'event_category': 'Customer Service',
+    'event_label': location,
+    'non_interaction': true
+  });
+}
+
+// Track phone call clicks
+function trackPhoneClick() {
+  gtag('event', 'phone_call', {
+    'event_category': 'Contact',
+    'event_label': '954-278-1990'
+  });
+}
+</script>
+
+<!-- ============================================== -->
+<!-- FACEBOOK PIXEL -->
+<!-- ============================================== -->
+
+<!-- Replace YOUR_PIXEL_ID with your actual Facebook Pixel ID -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', 'YOUR_PIXEL_ID');
+fbq('track', 'PageView');
+</script>
+<noscript>
+  <img height="1" width="1" style="display:none"
+       src="https://www.facebook.com/tr?id=YOUR_PIXEL_ID&ev=PageView&noscript=1"/>
+</noscript>
+
+<!-- ============================================== -->
+<!-- FACEBOOK CUSTOM EVENTS -->
+<!-- ============================================== -->
+
+<script>
+// Track booking start
+function trackFBBookingStart(value) {
+  fbq('track', 'InitiateCheckout', {
+    value: value,
+    currency: 'USD'
+  });
+}
+
+// Track completed purchase
+function trackFBPurchase(value, bookingId) {
+  fbq('track', 'Purchase', {
+    value: value,
+    currency: 'USD',
+    content_type: 'product',
+    content_ids: [bookingId]
+  });
+}
+
+// Track lead (contact form)
+function trackFBLead() {
+  fbq('track', 'Lead');
+}
+</script>
+
+<!-- ============================================== -->
+<!-- USAGE INSTRUCTIONS -->
+<!-- ============================================== -->
+
+<!--
+TO USE THESE TRACKING CODES:
+
+1. Get your Google Analytics 4 property ID:
+   - Go to analytics.google.com
+   - Create a new GA4 property
+   - Copy your measurement ID (G-XXXXXXXXXX)
+   - Replace all instances of G-XXXXXXXXXX in this file
+
+2. Get your Facebook Pixel ID:
+   - Go to business.facebook.com
+   - Go to Events Manager
+   - Create a new pixel
+   - Copy your Pixel ID
+   - Replace YOUR_PIXEL_ID in this file
+
+3. Add to your website:
+   - Paste this entire code in the <head> section
+   - On your booking confirmation page, call:
+     trackBookingComplete(bookingId, location, totalPrice, days);
+     trackFBPurchase(totalPrice, bookingId);
+
+4. Test:
+   - Make a test booking
+   - Check Google Analytics Real-Time reports
+   - Check Facebook Events Manager
+
+5. Set up conversions in Google Ads:
+   - Link your GA4 to Google Ads
+   - Import purchase events as conversions
+-->
